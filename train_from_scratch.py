@@ -93,16 +93,16 @@ class UniversalAudioDataset(Dataset):
         return self.text, self.encoded_audio, waveform_placeholder
 
 
-def get_training_config(epochs: int = 1000, learning_rate: float = 1e-3, output_dir: str = "scratch_checkpoints"):
-    """Get training configuration for training from scratch."""
+def get_training_config(epochs: int = 1000, learning_rate: float = 5e-4, output_dir: str = "scratch_checkpoints"):
+    """Get training configuration for training from scratch with proper warmup."""
     return TrainConfig(
         epochs=epochs,
         batch_size=1,               # Single sample overfitting
         grad_accum_steps=1,         # Single sample needs immediate updates
-        learning_rate=learning_rate, # Higher LR for scratch training
-        warmup_steps=min(epochs // 5, 200),  # 1/5 of epochs or 200, whichever is smaller
-        eval_step=100,              # Check progress frequently
-        save_step=100,              # Save checkpoints regularly
+        learning_rate=learning_rate, # Conservative LR for scratch training
+        warmup_steps=max(epochs // 3, 300),  # Long warmup essential for scratch training
+        eval_step=50,               # Check progress frequently
+        save_step=50,               # Save checkpoints regularly
         split_ratio=0.0,            # No validation split for overfitting
         run_name=f"scratch_overfit_{Path(output_dir).name}",
         output_dir=Path(output_dir),
@@ -115,7 +115,7 @@ def main():
     parser.add_argument("audio_file", type=str, help="Path to audio file")
     parser.add_argument("text", type=str, help="Text description of the audio")
     parser.add_argument("--epochs", type=int, default=1000, help="Number of training epochs")
-    parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
+    parser.add_argument("--lr", type=float, default=5e-4, help="Learning rate (conservative for scratch training)")
     parser.add_argument("--output_dir", type=str, default="scratch_checkpoints", help="Output directory for checkpoints")
     parser.add_argument("--config", type=str, default="dia/music_config.json", help="Path to model config")
     

@@ -836,22 +836,33 @@ class DiaModel(nn.Module):
         self.config = config
         self.encoder = Encoder(config)
         self.decoder = Decoder(config)
-        # self._init_weights()
+        self._init_weights()
 
     
     def _init_weights(self):
-        for module in self.modules():
-            if isinstance(module, (torch.nn.Linear, torch.nn.Conv1d)):
+        """Proper weight initialization for transformer training from scratch."""
+        for name, module in self.named_modules():
+            if isinstance(module, torch.nn.Linear):
+                # Xavier/Glorot uniform for linear layers
                 torch.nn.init.xavier_uniform_(module.weight)
                 if module.bias is not None:
                     torch.nn.init.zeros_(module.bias)
             elif isinstance(module, torch.nn.Embedding):
-                torch.nn.init.xavier_uniform_(module.weight)
-            elif isinstance(module, torch.nn.LayerNorm) or isinstance(module, torch.nn.modules.normalization.RMSNorm):
+                # Normal initialization for embeddings with small variance
+                torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+            elif isinstance(module, (torch.nn.LayerNorm, RMSNorm)):
+                # Layer norm: weight=1, bias=0
                 if hasattr(module, 'weight') and module.weight is not None:
                     torch.nn.init.ones_(module.weight)
                 if hasattr(module, 'bias') and module.bias is not None:
                     torch.nn.init.zeros_(module.bias)
+            elif isinstance(module, DenseGeneral):
+                # Xavier/Glorot for attention matrices and dense layers
+                torch.nn.init.xavier_uniform_(module.weight)
+                if hasattr(module, 'bias') and module.bias is not None:
+                    torch.nn.init.zeros_(module.bias)
+        
+        print("Applied proper weight initialization for transformer training from scratch")
 
     def forward(
         self,
