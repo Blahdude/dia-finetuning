@@ -836,7 +836,7 @@ class DiaModel(nn.Module):
         self.config = config
         self.encoder = Encoder(config)
         self.decoder = Decoder(config)
-        #self._init_weights()
+        # self._init_weights()
 
     
     def _init_weights(self):

@@ -233,6 +233,7 @@ class Dia:
         self,
         text: str,
         max_tokens: int | None = None,
+        min_tokens: int | None = None,
         cfg_scale: float = 3.0,
         temperature: float = 1.3,
         top_p: float = 0.95,
@@ -433,7 +434,11 @@ class Dia:
 
             generated_BxTxC[:, step + 1, :] = pred_C.unsqueeze(0).expand(2, -1)
 
-            if not eos_detected_channel_0 and pred_C[0] == audio_eos_value:
+            # Check if we've generated enough tokens before allowing EOS
+            tokens_generated = step - current_step + 1
+            min_tokens_reached = min_tokens is None or tokens_generated >= min_tokens
+            
+            if not eos_detected_channel_0 and pred_C[0] == audio_eos_value and min_tokens_reached:
                 eos_detected_channel_0 = True
                 eos_countdown = extra_steps_after_eos
 

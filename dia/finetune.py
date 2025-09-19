@@ -221,6 +221,13 @@ def setup_loaders(dataset, dia_cfg: DiaConfig, train_cfg: TrainConfig, device):
         return train_loader, val_loader
     ds_len = len(dataset)
     n_train = int(train_cfg.split_ratio * ds_len)
+    
+    # Handle single sample case - use entire dataset for training, skip validation
+    if ds_len == 1 or n_train == 0:
+        train_loader = DataLoader(dataset, batch_size=train_cfg.batch_size, shuffle=True, collate_fn=collate)
+        val_loader = None  # No validation for single sample
+        return train_loader, val_loader
+    
     train_ds, val_ds = random_split(dataset, [n_train, ds_len - n_train])
     train_loader = DataLoader(train_ds, batch_size=train_cfg.batch_size, shuffle=True, collate_fn=collate)
     val_loader = DataLoader(val_ds, batch_size=1, shuffle=False, collate_fn=collate)
@@ -455,7 +462,7 @@ def train(model, dia_cfg: DiaConfig, dac_model: dac.DAC, dataset, train_cfg: Tra
             
 
             # evaluation
-            if step % train_cfg.eval_step == 0:
+            if step % train_cfg.eval_step == 0 and val_loader is not None:
                 model.eval()
                 with torch.no_grad():
                     eval_step(model, val_loader, dia_cfg, dac_model, writer, global_step)
@@ -467,10 +474,11 @@ def train(model, dia_cfg: DiaConfig, dac_model: dac.DAC, dataset, train_cfg: Tra
                 torch.save(model.state_dict(), ckpt)
                 logger.info(f"Saved checkpoint: {ckpt}")
 
-        # end of epoch checkpoint
-        ckpt_e = train_cfg.output_dir / f"ckpt_epoch{epoch+1}.pth"
-        torch.save(model.state_dict(), ckpt_e)
-        logger.info(f"Saved end-of-epoch checkpoint: {ckpt_e}")
+        # end of epoch checkpoint - only save on final epoch
+        if epoch == train_cfg.epochs - 1:
+            ckpt_e = train_cfg.output_dir / f"ckpt_epoch{epoch+1}.pth"
+            torch.save(model.state_dict(), ckpt_e)
+            logger.info(f"Saved final checkpoint: {ckpt_e}")
 
 
 
